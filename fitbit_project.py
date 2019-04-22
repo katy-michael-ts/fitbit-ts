@@ -192,8 +192,6 @@ df_food_log.head(10)
 
 df_food_log.groupby("date")["column", "value"]
 
-df_food_log.set_index(["date", "column"]).unstack(level=-1)
-
 df_food_log.column.value_counts(dropna=False)
 
 df_food_log.value.value_counts(dropna=False)
