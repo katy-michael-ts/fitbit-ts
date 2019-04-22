@@ -196,7 +196,32 @@ df_food_log.set_index(["date", "column"]).unstack(level=-1)
 
 df_food_log.column.value_counts(dropna=False)
 
+df_food_log.value.value_counts(dropna=False)
+
 # **I need to iterate over the DataFrame, use the date as the index, make columns for calories, fat, etc and put the value there**
+
+# +
+columns=("calories", "fat", "fiber", "carbs", "sodium",
+         "protein", "water")
+out_of_place = []
+out = pd.DataFrame()
+for index, row in df_food_log.iterrows():
+    if isinstance(row["column"], str):
+        col_lower = row["column"].lower()
+        if col_lower in columns:
+            out.loc[row["date"], col_lower] = row["value"]
+        else:
+            out_of_place.append(row)
+    else:
+        out_of_place.append(row)
+        
+#     print(row["column"], row["value"])
+# -
+
+out.info()
+
+print(len(out_of_place))
+pprint(out_of_place)
 
 df = pd.DataFrame({"col1": [1,1,1,1], "col2": [10,11,12,13], "col3": [99, 98, 97, 96]})
 
