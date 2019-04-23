@@ -67,19 +67,24 @@
 
 # ### Prepare the Environment
 
-# +
 import os
 from pprint import pprint
 from enum import Enum, auto
 import io
 from datetime import timedelta
-
+from pylab import rcParams
+import matplotlib.pyplot as plt
+# %matplotlib inline
+import seaborn as sns
+import statsmodels.api as sm
+from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
+import statsmodels.api as sm
+from statsmodels.tsa.ar_model import AR
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn import metrics
 import adalib
-
 import pandas as pd
-
-
-# -
+import math
 
 # **Reload modules to capture changes**
 
@@ -310,11 +315,6 @@ print(out_of_place[2])
 df.describe()
 
 # +
-import matplotlib.pyplot as plt
-
-# %matplotlib inline
-import seaborn as sns
-
 plt.figure(figsize=(16, 10))
 
 for i, col in enumerate(
@@ -367,8 +367,6 @@ for i, col in enumerate(
 
 df["calories_burned_bin"] = pd.qcut(df.calories_burned, q=4)
 
-df.date.min()
-
 sns.swarmplot(
     x="calories_burned_bin", y="activity_calories", data=df, palette="Set2"
 )
@@ -386,6 +384,125 @@ train = df[:"2018-08"]
 test = df["2018-12":]
 print(train.nunique())
 print(test.nunique())
+
+#Weekly
+calories = train.resample('W').calories_burned.mean()
+
+calories.head()
+
+calories.plot()
+
+#Monthly
+calories.resample('MS').mean().plot()
+
+#5 period rolling mean and plot
+calories.rolling(5).mean().plot(figsize=(12, 4))
+
+#10 period difference and plot
+calories.diff(periods=10).plot(figsize=(12, 4))
+
+#lag plot
+pd.plotting.lag_plot(calories)
+
+#pearson correlation
+df_corr = pd.concat([calories.shift(1), calories], axis=1)
+df_corr.columns = ['t-1','t+1']
+result = df_corr.corr()
+print(result)
+
+#autocorrelation plot
+pd.plotting.autocorrelation_plot(calories)
+
+#partial autocorrelation plot
+sm.graphics.tsa.plot_pacf(calories)
+
+# ### Modeling
+
+# +
+# df = df.dropna
+
+# +
+aggregation = 'sum'
+
+train = df[:'2018-09'].calories_burned.resample('D').agg(aggregation)
+test = df['2018-10':].calories_burned.resample('D').agg(aggregation)
+# -
+
+print('Observations: %d' % (len(train.values) + len(test.values)))
+print('Training Observations: %d' % (len(train)))
+print('Testing Observations: %d' % (len(test)))
+
+pd.concat([train.head(3), train.tail(3)])
+
+plt.figure(figsize=(10, 6))
+plt.plot(train)
+plt.plot(test)
+plt.show()
+
+# +
+#SIMPLE AVERAGE
+
+yhat = pd.DataFrame(dict(actual=test))
+# -
+
+yhat['avg_forecast'] = train.mean()
+yhat.head()
+
+
+# +
+def plot_data_and_predictions(predictions, label):
+    plt.figure(figsize=(10, 8))
+
+    plt.plot(train,label='Train')
+    plt.plot(test, label='Test')
+    plt.plot(predictions, label=label, linewidth=5)
+
+    plt.legend(loc='best')
+    plt.show()
+
+
+def evaluate(actual, predictions, output=True):
+    mse = metrics.mean_squared_error(actual, predictions)
+    rmse = math.sqrt(mse)
+
+    if output:
+        print('MSE:  {}'.format(mse))
+        print('RMSE: {}'.format(rmse))
+    else:
+        return mse, rmse    
+
+def plot_and_eval(predictions, actual=test, metric_fmt='{:.2f}', linewidth=4):
+    if type(predictions) is not list:
+        predictions = [predictions]
+
+    plt.figure(figsize=(16, 8))
+    plt.plot(train,label='Train')
+    plt.plot(test, label='Test')
+
+    for yhat in predictions:
+        mse, rmse = evaluate(actual, yhat, output=False)        
+        label = f'{yhat.name}'
+        if len(predictions) > 1:
+            label = f'{label} -- MSE: {metric_fmt} RMSE: {metric_fmt}'.format(mse, rmse)
+        plt.plot(yhat, label=label, linewidth=linewidth)
+
+    if len(predictions) == 1:
+        label = f'{label} -- MSE: {metric_fmt} RMSE: {metric_fmt}'.format(mse, rmse)
+        plt.title(label)
+
+    plt.legend(loc='best')
+    plt.show() 
+
+
+# -
+
+plot_and_eval(yhat.avg_forecast)
+
+test
+
+
+
+
 
 # ### Summarize Data
 
