@@ -247,6 +247,51 @@ print(out_of_place[1])
 print()
 print(out_of_place[2])
 
+df.describe()
+
+# +
+import matplotlib.pyplot as plt
+# %matplotlib inline
+import seaborn as sns
+
+plt.figure(figsize=(16, 10))
+
+for i, col in enumerate(['calories_in', 'calories_burned', 'steps', 'distance', 'floors', 'minutes_sedentary', 'minutes_lightly_active','minutes_fairly_active', 'minutes_very_active', 'activity_calories']):
+    plot_number = i + 1 
+    series = df[col]
+    plt.subplot(4, 4, plot_number)
+    plt.title(col)
+    series.hist(bins=20, density=False, cumulative=False, log=False)
+# -
+
+plt.figure(figsize=(10,6))
+sns.heatmap(df.corr(), cmap='Blues', annot=True)
+
+# +
+plt.figure(figsize=(16, 10))
+
+for i, col in enumerate(['calories_in', 'calories_burned', 'steps', 'distance', 'floors', 'minutes_sedentary', 'minutes_lightly_active','minutes_fairly_active', 'minutes_very_active', 'activity_calories']):
+    plot_number = i + 1
+    series = df[col]
+    plt.subplot(4, 4, plot_number)
+    plt.title(col)
+    sns.boxplot(data=series)
+# -
+
+df["calories_burned_bin"] = pd.qcut(df.calories_burned, q=4)
+
+df.date.min()
+
+sns.swarmplot(x="calories_burned_bin", y="activity_calories", data=df, palette="Set2")
+ax = sns.boxplot(x="calories_burned_bin", y="activity_calories", data=df,
+        showcaps=True,boxprops={'facecolor':'None'},
+        showfliers=True,whiskerprops={'linewidth':0})
+
+train = df[:'2018-08']
+test = df['2018-12':]
+print(train.nunique())
+print(test.nunique())
+
 # ### Summarize Data
 
 # ### Handle Missing Values
