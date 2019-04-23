@@ -73,13 +73,10 @@ activities = []
 food_log = []
 for file in sorted(os.listdir(DATADIR)):
     with open(DATADIR + '/' + file) as fp:
-        # print(f"Reading {file}")
         lines = fp.readlines()
         csvtype = None
         date = ""
-        for line in lines:
-            # print("Line:", lines)
-            
+        for line in lines:            
             # START OF NEW CSV
             if line.startswith("Foods"):
                 csvtype = CSVType.CALS_IN 
@@ -103,25 +100,25 @@ for file in sorted(os.listdir(DATADIR)):
             elif csvtype == CSVType.FOOD_LOG:
                 if line.startswith('""'):
                     line = line.replace('""', f'"{date[:4]}-{date[4:6]}-{date[6:]}"')
-                    print(repr(line))
                 food_log.append(line)
 
+
+# +
+# pprint(cals_in)
+
+# +
+# pprint(activities)
+
+# +
+# pprint(food_log)
 # -
 
-pprint(cals_in)
+# ## Preparation <a name="preparation"></a>
 
-pprint(activities)
-
-pprint(food_log)
+# ### Prepare Caloric Intake Dataframe
 
 cals_in_cols = ["date", "calories_in"]
 df_cals_in = pd.read_csv(io.StringIO("".join(cals_in)), header=None, names=cals_in_cols)
-
-df_cals_in.info()
-
-df_cals_in.sample(n=10)
-
-df_cals_in.T
 
 
 # +
@@ -144,26 +141,21 @@ def df_cals_in_prepare(df: pd.DataFrame) -> pd.DataFrame:
 
 df_cals_in = df_cals_in_prepare(df_cals_in)
 
-df_cals_in.info()
 
-df_cals_in.sample(n=10)
-
-
-# +
 def has_every_day(date_series: pd.Series) -> bool:
     return timedelta(date_series.nunique()) == (date_series.max() - date_series.min()) + timedelta(days=1)
 
+
 has_every_day(df_cals_in.date)
-# -
+
+df_cals_in.info()
+
+# ### Prepare Activities Dataframe
 
 activities_cols = ["date", "calories_burned", "steps", "distance", 
               "floors", "minutes_sedentary", "minutes_lightly_active", 
               "minutes_fairly_active", "minutes_very_active", "activity_calories"]
 df_activities = pd.read_csv(io.StringIO("".join(activities)), header=None, names=activities_cols)
-
-df_activities.info()
-
-df_activities.sample(n=10)
 
 
 def df_activities_prepare(df: pd.DataFrame) -> pd.DataFrame:
@@ -177,9 +169,13 @@ def df_activities_prepare(df: pd.DataFrame) -> pd.DataFrame:
     return df.astype({"calories_burned": int, "steps": int, "minutes_sedentary": int, "activity_calories": int})
 
 
-df_activities_prepare(df_activities).info()
+df_activities = df_activities_prepare(df_activities)
 
-df_activities_prepare(df_activities).sample(n=10)
+has_every_day(df_activities.date)
+
+df_activities.info()
+
+# ### Prepare Food Log Dataframe
 
 # food_log_cols = ["date", "calories", "fat", "fiber", "carbs", "sodium",
 #                  "protein", "water"]
@@ -187,14 +183,6 @@ food_log_cols = ["date", "column", "value"]
 df_food_log = pd.read_csv(io.StringIO("".join(food_log)), header=None, names=food_log_cols)
 
 df_food_log.info()
-
-df_food_log.head(10)
-
-df_food_log.groupby("date")["column", "value"]
-
-df_food_log.column.value_counts(dropna=False)
-
-df_food_log.value.value_counts(dropna=False)
 
 # **I need to iterate over the DataFrame, use the date as the index, make columns for calories, fat, etc and put the value there**
 
@@ -216,21 +204,14 @@ for index, row in df_food_log.iterrows():
 #     print(row["column"], row["value"])
 # -
 
-out.info()
-
-print(len(out_of_place))
-pprint(out_of_place)
-
-df = pd.DataFrame({"col1": [1,1,1,1], "col2": [10,11,12,13], "col3": [99, 98, 97, 96]})
-
-df.head()
-
-df.set_index(["col1", "col2"]).unstack(level=-1)
+out = out.reset_index()
+out = out.rename(columns={"index": "date"})
 
 
 # +
 def df_food_log_prepare(df: pd.DataFrame) -> pd.DataFrame:
     df = df_col_to_datetime(df, "date", format="%Y-%m-%d")
+    return df
     
 #     df["calories_burned"] = series_remove_commas(df.calories_burned)
 #     df["steps"] = series_remove_commas(df.steps)
@@ -238,9 +219,33 @@ def df_food_log_prepare(df: pd.DataFrame) -> pd.DataFrame:
 #     df["activity_calories"] = series_remove_commas(df.activity_calories)
     
 #     return df.astype({"calories_burned": int, "steps": int, "minutes_sedentary": int, "activity_calories": int})
+
+
 # -
 
-# ## Preparation <a name="preparation"></a>
+out = df_food_log_prepare(out)
+
+out.info()
+
+# ### Start Merging Dataframes
+
+df = df_cals_in.merge(df_activities, how="outer", on="date")
+
+df.info()
+
+df = df.merge(out, how="outer", on="date")
+
+df.info()
+
+df.isnull().sum()
+
+# ### What to do with the extras?
+
+print(out_of_place[0])
+print()
+print(out_of_place[1])
+print()
+print(out_of_place[2])
 
 # ### Summarize Data
 
