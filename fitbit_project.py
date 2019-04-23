@@ -85,6 +85,7 @@ import pandas as pd
 
 # ## Acquisition <a name="acquisition"></a>
 
+
 class CSVType(Enum):
     CALS_IN = auto()
     ACTIVITIES = auto()
@@ -102,26 +103,29 @@ cals_in = []
 activities = []
 food_log = []
 for file in sorted(os.listdir(DATADIR)):
-    with open(DATADIR + '/' + file) as fp:
+    with open(DATADIR + "/" + file) as fp:
         lines = fp.readlines()
         csvtype = None
         date = ""
-        for line in lines:            
+        for line in lines:
             # START OF NEW CSV
             if line.startswith("Foods"):
-                csvtype = CSVType.CALS_IN 
+                csvtype = CSVType.CALS_IN
             elif line.startswith("Activities"):
-                csvtype = CSVType.ACTIVITIES 
+                csvtype = CSVType.ACTIVITIES
             elif line.startswith("Food Log"):
                 toks = line.split()
                 date = toks[2]
                 csvtype = CSVType.FOOD_LOG
-                
+
             # START OF HEADER
-            elif line.startswith(CALS_IN_HEADER) or line.startswith(ACTIVITIES_HEADER) or\
-            line.startswith(FOOD_LOG_HEADER):
+            elif (
+                line.startswith(CALS_IN_HEADER)
+                or line.startswith(ACTIVITIES_HEADER)
+                or line.startswith(FOOD_LOG_HEADER)
+            ):
                 continue
-            
+
             # IT'S DATA!
             elif csvtype == CSVType.CALS_IN:
                 cals_in.append(line)
@@ -129,7 +133,9 @@ for file in sorted(os.listdir(DATADIR)):
                 activities.append(line)
             elif csvtype == CSVType.FOOD_LOG:
                 if line.startswith('""'):
-                    line = line.replace('""', f'"{date[:4]}-{date[4:6]}-{date[6:]}"')
+                    line = line.replace(
+                        '""', f'"{date[:4]}-{date[4:6]}-{date[6:]}"'
+                    )
                 food_log.append(line)
 
 
@@ -148,7 +154,9 @@ for file in sorted(os.listdir(DATADIR)):
 # ### Prepare Caloric Intake Dataframe
 
 cals_in_cols = ["date", "calories_in"]
-df_cals_in = pd.read_csv(io.StringIO("".join(cals_in)), header=None, names=cals_in_cols)
+df_cals_in = pd.read_csv(
+    io.StringIO("".join(cals_in)), header=None, names=cals_in_cols
+)
 
 
 # +
@@ -158,8 +166,10 @@ def df_col_to_datetime(df: pd.DataFrame, col: str, **kwargs) -> pd.DataFrame:
     out[col] = datetimed
     return out
 
+
 def series_remove_commas(series: pd.Series) -> pd.Series:
     return series.str.replace(",", "")
+
 
 def df_cals_in_prepare(df: pd.DataFrame) -> pd.DataFrame:
     df["calories_in"] = series_remove_commas(df.calories_in)
@@ -173,7 +183,9 @@ df_cals_in = df_cals_in_prepare(df_cals_in)
 
 
 def has_every_day(date_series: pd.Series) -> bool:
-    return timedelta(date_series.nunique()) == (date_series.max() - date_series.min()) + timedelta(days=1)
+    return timedelta(date_series.nunique()) == (
+        date_series.max() - date_series.min()
+    ) + timedelta(days=1)
 
 
 has_every_day(df_cals_in.date)
@@ -182,21 +194,39 @@ df_cals_in.info()
 
 # ### Prepare Activities Dataframe
 
-activities_cols = ["date", "calories_burned", "steps", "distance", 
-              "floors", "minutes_sedentary", "minutes_lightly_active", 
-              "minutes_fairly_active", "minutes_very_active", "activity_calories"]
-df_activities = pd.read_csv(io.StringIO("".join(activities)), header=None, names=activities_cols)
+activities_cols = [
+    "date",
+    "calories_burned",
+    "steps",
+    "distance",
+    "floors",
+    "minutes_sedentary",
+    "minutes_lightly_active",
+    "minutes_fairly_active",
+    "minutes_very_active",
+    "activity_calories",
+]
+df_activities = pd.read_csv(
+    io.StringIO("".join(activities)), header=None, names=activities_cols
+)
 
 
 def df_activities_prepare(df: pd.DataFrame) -> pd.DataFrame:
     df = df_col_to_datetime(df, "date", format="%Y-%m-%d")
-    
+
     df["calories_burned"] = series_remove_commas(df.calories_burned)
     df["steps"] = series_remove_commas(df.steps)
     df["minutes_sedentary"] = series_remove_commas(df.minutes_sedentary)
     df["activity_calories"] = series_remove_commas(df.activity_calories)
-    
-    return df.astype({"calories_burned": int, "steps": int, "minutes_sedentary": int, "activity_calories": int})
+
+    return df.astype(
+        {
+            "calories_burned": int,
+            "steps": int,
+            "minutes_sedentary": int,
+            "activity_calories": int,
+        }
+    )
 
 
 df_activities = df_activities_prepare(df_activities)
@@ -210,15 +240,16 @@ df_activities.info()
 # food_log_cols = ["date", "calories", "fat", "fiber", "carbs", "sodium",
 #                  "protein", "water"]
 food_log_cols = ["date", "column", "value"]
-df_food_log = pd.read_csv(io.StringIO("".join(food_log)), header=None, names=food_log_cols)
+df_food_log = pd.read_csv(
+    io.StringIO("".join(food_log)), header=None, names=food_log_cols
+)
 
 df_food_log.info()
 
 # **I need to iterate over the DataFrame, use the date as the index, make columns for calories, fat, etc and put the value there**
 
 # +
-columns=("calories", "fat", "fiber", "carbs", "sodium",
-         "protein", "water")
+columns = ("calories", "fat", "fiber", "carbs", "sodium", "protein", "water")
 out_of_place = []
 out = pd.DataFrame()
 for index, row in df_food_log.iterrows():
@@ -230,7 +261,7 @@ for index, row in df_food_log.iterrows():
             out_of_place.append(row)
     else:
         out_of_place.append(row)
-        
+
 #     print(row["column"], row["value"])
 # -
 
@@ -242,12 +273,13 @@ out = out.rename(columns={"index": "date"})
 def df_food_log_prepare(df: pd.DataFrame) -> pd.DataFrame:
     df = df_col_to_datetime(df, "date", format="%Y-%m-%d")
     return df
-    
+
+
 #     df["calories_burned"] = series_remove_commas(df.calories_burned)
 #     df["steps"] = series_remove_commas(df.steps)
 #     df["minutes_sedentary"] = series_remove_commas(df.minutes_sedentary)
 #     df["activity_calories"] = series_remove_commas(df.activity_calories)
-    
+
 #     return df.astype({"calories_burned": int, "steps": int, "minutes_sedentary": int, "activity_calories": int})
 
 
@@ -274,6 +306,88 @@ print()
 print(out_of_place[1])
 print()
 print(out_of_place[2])
+
+df.describe()
+
+# +
+import matplotlib.pyplot as plt
+
+# %matplotlib inline
+import seaborn as sns
+
+plt.figure(figsize=(16, 10))
+
+for i, col in enumerate(
+    [
+        "calories_in",
+        "calories_burned",
+        "steps",
+        "distance",
+        "floors",
+        "minutes_sedentary",
+        "minutes_lightly_active",
+        "minutes_fairly_active",
+        "minutes_very_active",
+        "activity_calories",
+    ]
+):
+    plot_number = i + 1
+    series = df[col]
+    plt.subplot(4, 4, plot_number)
+    plt.title(col)
+    series.hist(bins=20, density=False, cumulative=False, log=False)
+# -
+
+plt.figure(figsize=(10, 6))
+sns.heatmap(df.corr(), cmap="Blues", annot=True)
+
+# +
+plt.figure(figsize=(16, 10))
+
+for i, col in enumerate(
+    [
+        "calories_in",
+        "calories_burned",
+        "steps",
+        "distance",
+        "floors",
+        "minutes_sedentary",
+        "minutes_lightly_active",
+        "minutes_fairly_active",
+        "minutes_very_active",
+        "activity_calories",
+    ]
+):
+    plot_number = i + 1
+    series = df[col]
+    plt.subplot(4, 4, plot_number)
+    plt.title(col)
+    sns.boxplot(data=series)
+# -
+
+df["calories_burned_bin"] = pd.qcut(df.calories_burned, q=4)
+
+df.date.min()
+
+sns.swarmplot(
+    x="calories_burned_bin", y="activity_calories", data=df, palette="Set2"
+)
+ax = sns.boxplot(
+    x="calories_burned_bin",
+    y="activity_calories",
+    data=df,
+    showcaps=True,
+    boxprops={"facecolor": "None"},
+    showfliers=True,
+    whiskerprops={"linewidth": 0},
+)
+
+train = df[:"2018-08"]
+test = df["2018-12":]
+print(train.nunique())
+print(test.nunique())
+
+# ### Summarize Data
 
 # ### Handle Missing Values
 
@@ -311,7 +425,7 @@ adalib.summarize(df)
 # - What is distance measured in?
 # - What does "floors" mean?
 # - What is the difference between the "calories in" and "calories" columns?
-# - 
+# -
 #
 # **Conclusions**
 #
@@ -323,7 +437,7 @@ adalib.summarize(df)
 # 1. columns to drop
 #     - calories_in (239 rows are 0)
 # 1. After looking at the binned data, it looks like this person was active much of the time by looking at calories_burned and steps.
-# 1. 
+# 1.
 
 pd.concat([df.head(14), df.tail(14)])
 
