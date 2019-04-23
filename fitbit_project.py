@@ -17,6 +17,8 @@
 # By Kathryn Salts & Michael Moran
 
 # ## TODO
+#
+# - [ ] [What to do with extra data?](#todo-extra-data)
 
 # ## Table of contents
 # 1. [Project Planning](#project-planning)
@@ -29,13 +31,39 @@
 
 # ### Goals
 
+# 1. Identify who was wearing the Fitbit
+# 1. Predict what next two weeks of data will be
+
 # ### Deliverables
 
+# 1. CSV with predictions of next two weeks of data
+# 1. Two slides describing the Fitbit data and our predictions. Must contain at least one visualization
+# 1. Jupyter notebook showing work
+# 1. Tidy dataset
+
 # ### Data Dictionary & Domain Knowledge
+#
+# - Caloric burn per day
+#     - avg man: 2,200 - 3,000
+#     - avg woman: 1,800 - 2,2000
+#     - [Source](https://www.livestrong.com/article/278257-how-many-calories-does-the-body-naturally-burn-per-day/)
 
 # ### Hypotheses
+#
+# 1. The wearer may be testing fitness trackers.
+# 1. The wearer appears to be fairly active, but not mostly mobile activity, possibly stationary like lifting weights.
+# 1. Probably not someone in a drug trial because there are not many entries in the food log. We would expect them to be logging food to see if there are any interactions.
+# 1. The wearer is likely not wearing the tracker while sleeping. Average inactivity/activity minutes is 16-17 hours per day.
+#     - Wouldn't expect a person testing fitness equipment to wear it that long
+#     - Would make sense for an employee or drug trial participant (but we would expect the drug trial participant to wear it while sleeping)
+# 1. Likely not a person testing fitness equipment because there are food log entries for one week; and also likely not a drug trial participant for the same reason
+#     - Makes it more likely to be an employee who lost the motivation to log food
+# - Next two week
+# 1. Looks like person stopped wearing tracker on 12/7/18 because there are food log entries and caloric intake entries for dates after the 7th, but the activity log stops on the 6th.
 
 # ### Thoughts & Questions
+#
+# 1. What does the weekend data look like? This may tell us whether they work there or are in a drug trial  (likely to wear the fitbit on the weekend) or are testing fitness equipment (not likely to wear on weekend)
 
 # ### Prepare the Environment
 
@@ -45,6 +73,8 @@ from pprint import pprint
 from enum import Enum, auto
 import io
 from datetime import timedelta
+
+import adalib
 
 import pandas as pd
 
@@ -235,11 +265,9 @@ df.info()
 
 df = df.merge(out, how="outer", on="date")
 
-df.info()
+df = df.sort_values("date").set_index("date")
 
-df.isnull().sum()
-
-# ### What to do with the extras?
+# ### What to do with the extras? <a name="todo-extra-data"></a>
 
 print(out_of_place[0])
 print()
@@ -247,9 +275,23 @@ print(out_of_place[1])
 print()
 print(out_of_place[2])
 
-# ### Summarize Data
-
 # ### Handle Missing Values
+
+df.isnull().sum()
+
+df[df.isnull().any(axis=1)]
+
+# **Impute calories_burned using the mean**
+
+# **Impute steps by mean**
+
+# **Impute distance by mean**
+
+# **Impute floors with mean**
+
+#
+
+#
 
 # ### Handle Duplicates
 
@@ -258,6 +300,32 @@ print(out_of_place[2])
 # ### Handle Outliers
 
 # ### Check Missing Values
+
+# ### Summarize Data
+
+df.info()
+
+adalib.summarize(df)
+
+# **Thoughts**
+# - What is distance measured in?
+# - What does "floors" mean?
+# - What is the difference between the "calories in" and "calories" columns?
+# - 
+#
+# **Conclusions**
+#
+# 1. calories_in has a mean of 51; looks like it is mostly 0
+# 1. The mean of calories_buned appears to be above the average for a man and way above average for a woman
+# 1. Steps and distance metrics appear to match up
+# 1. This person is sedentary for on average 13+ hours
+# 1. There appear to be days where the Fitbit was not worn or not worn much. min of calories_burned is 799. min of steps and distance and floors is 0. minutes sedentary is 1440 (24 hours).
+# 1. columns to drop
+#     - calories_in (239 rows are 0)
+# 1. After looking at the binned data, it looks like this person was active much of the time by looking at calories_burned and steps.
+# 1. 
+
+pd.concat([df.head(14), df.tail(14)])
 
 # ## Exploration  <a name="exploration"></a>
 
