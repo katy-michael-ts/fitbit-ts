@@ -87,6 +87,8 @@ import pandas as pd
 import math
 from statsmodels.tsa.api import Holt
 from fbprophet import Prophet
+from fbprophet.diagnostics import cross_validation, performance_metrics
+from fbprophet.plot import plot_cross_validation_metric, plot_forecast_component
 
 # **Reload modules to capture changes**
 
@@ -421,9 +423,6 @@ sm.graphics.tsa.plot_pacf(calories)
 # ### Modeling
 
 # +
-# df = df.dropna
-
-# +
 aggregation = 'sum'
 
 train = df[:'2018-09'].calories_burned.resample('D').agg(aggregation)
@@ -532,9 +531,84 @@ plot_and_eval(yhat.holt_linear)
 
 # ## Prophet
 
-df['y'] = df.calories_burned
-df['ds'] = df.Date
-df = df.groupby(['ds'])['y'].sum().reset_index()
+# +
+d_df = df
+
+d_df['y'] = d_df.calories_burned
+d_df['ds'] = d_df.index
+d_df = d_df.groupby(['ds'])['y'].sum().reset_index()
+# -
+
+d_df.head()
+
+plt.figure(figsize=(16,6))
+sns.lineplot(d_df.ds, d_df.y)
+
+# +
+d_df['cap'] = 5000
+d_df['floor'] = 2100
+
+m = Prophet(daily_seasonality=True, growth='logistic', changepoint_range=0.9)
+m.fit(d_df)
+# -
+
+future = m.make_future_dataframe(periods=8)
+future['cap'] = 5000
+future['floor'] = 2100
+print(future.head())
+print(future.tail())
+print(d_df.tail())
+
+forecast = m.predict(future)
+forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
+
+fig1 = m.plot(forecast)
+
+fig2 = m.plot_components(forecast)
+
+# +
+# cross_validation(m, initial = 730, period = 180, horizon = 365, units = 'days')
+df_cv = cross_validation(m, horizon='30 days')
+
+df_p = performance_metrics(df_cv)
+df_p.head(5)
+# -
+
+fig3 = plot_cross_validation_metric(df_cv, metric='rmse')
+
+# +
+aggregation = 'sum'
+
+train = df[:'2018-09'].activity_calories.resample('D').agg(aggregation)
+test = df['2018-10':].activity_calories.resample('D').agg(aggregation)
+# -
+
+print('Observations: %d' % (len(train.values) + len(test.values)))
+print('Training Observations: %d' % (len(train)))
+print('Testing Observations: %d' % (len(test)))
+
+pd.concat([train.head(3), train.tail(3)])
+
+plt.figure(figsize=(10, 6))
+plt.plot(train)
+plt.plot(test)
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
