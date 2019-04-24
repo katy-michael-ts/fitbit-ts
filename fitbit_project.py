@@ -480,19 +480,29 @@ fig3 = plot_cross_validation_metric(df_cv, metric='rmse')
 # +
 aggregation = 'sum'
 
-train = df[:'2018-09'].activity_calories.resample('D').agg(aggregation)
-test = df['2018-10':].activity_calories.resample('D').agg(aggregation)
+train = df[:'2018-09'].activity_calories.resample('W').agg(aggregation)
+test = df['2018-10':].activity_calories.resample('W').agg(aggregation)
 # -
-
-print('Observations: %d' % (len(train.values) + len(test.values)))
-print('Training Observations: %d' % (len(train)))
-print('Testing Observations: %d' % (len(test)))
-
-pd.concat([train.head(3), train.tail(3)])
 
 plt.figure(figsize=(10, 6))
 plt.plot(train)
 plt.plot(test)
 plt.show()
+
+test
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # ### Summarize Conclusions
