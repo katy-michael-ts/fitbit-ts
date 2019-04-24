@@ -85,6 +85,7 @@ def prepare_fitbit(
 
     df = df.drop(
         columns=[
+            "calories_in",
             "calories",
             "fat",
             "fiber",

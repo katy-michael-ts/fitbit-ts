@@ -156,7 +156,7 @@ df_food_log.info()
 # ### Merge DataFrames, Sort, and Index by Date
 
 # 1. Merge the three dataframes on their date column using an outer join
-# 1. Drop the columns calories, fat, fiber, carbs, sodium, protein, water because they contain fewer than 10 non-zero entries.
+# 1. Drop the columns calories_in, calories, fat, fiber, carbs, sodium, protein, water because they contain fewer than 10 non-zero entries.
 
 df = prepare.prepare_fitbit(df_cals_in, df_activities, df_food_log)
 
@@ -183,11 +183,39 @@ adalib.df_missing_vals_by_col(df)
 
 # ### Handle Duplicates
 
+(df.index.value_counts(dropna=False) > 1).sum()
+
+# **No duplicates in index (dates)**
+
 # ### Fix Data Types
+
+df.info()
+
+# **Datatypes look acceptable**
 
 # ### Handle Outliers
 
+# +
+plt.figure(figsize=(20, 15))
+
+for i, col in enumerate(df.columns):
+    plot_number = i + 1
+    series = df[col]
+    plt.subplot(3, 3, plot_number)
+    plt.title(col)
+    sns.boxplot(data=series)
+# -
+
+# - calories_burned: remove < 1000
+# - minutes_sedentary < 200
+# - 
+
+df = df[df.calories_burned > 1000]
+df = df[df.minutes_sedentary > 150]
+
 # ### Check Missing Values
+
+df.isnull().sum()
 
 # ### Summarize Data
 
@@ -209,8 +237,6 @@ adalib.df_missing_vals_by_col(df)
 # 1. After looking at the binned data, it looks like this person was active much of the time by looking at calories_burned and steps.
 # 1.
 
-pd.concat([df.head(14), df.tail(14)])
-
 # ## Exploration  <a name="exploration"></a>
 
 # ### Train-Test Split
@@ -218,55 +244,18 @@ pd.concat([df.head(14), df.tail(14)])
 # ### Visualizations
 
 # +
-plt.figure(figsize=(16, 10))
+plt.figure(figsize=(16, 15))
 
-for i, col in enumerate(
-    [
-        "calories_in",
-        "calories_burned",
-        "steps",
-        "distance",
-        "floors",
-        "minutes_sedentary",
-        "minutes_lightly_active",
-        "minutes_fairly_active",
-        "minutes_very_active",
-        "activity_calories",
-    ]
-):
+for i, col in enumerate(df.columns):
     plot_number = i + 1
     series = df[col]
-    plt.subplot(4, 4, plot_number)
+    plt.subplot(4, 3, plot_number)
     plt.title(col)
     series.hist(bins=20, density=False, cumulative=False, log=False)
 # -
 
 plt.figure(figsize=(10, 6))
 sns.heatmap(df.corr(), cmap="Blues", annot=True)
-
-# +
-plt.figure(figsize=(16, 10))
-
-for i, col in enumerate(
-    [
-        "calories_in",
-        "calories_burned",
-        "steps",
-        "distance",
-        "floors",
-        "minutes_sedentary",
-        "minutes_lightly_active",
-        "minutes_fairly_active",
-        "minutes_very_active",
-        "activity_calories",
-    ]
-):
-    plot_number = i + 1
-    series = df[col]
-    plt.subplot(4, 4, plot_number)
-    plt.title(col)
-    sns.boxplot(data=series)
-# -
 
 df["calories_burned_bin"] = pd.qcut(df.calories_burned, q=4)
 
