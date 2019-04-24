@@ -179,6 +179,8 @@ adalib.df_missing_vals_by_col(df)
 df_bad_rows = adalib.df_missing_vals_by_row(df)
 df_bad_rows[(df_bad_rows.nmissing > 0) | (df_bad_rows.nempty > 0)]
 
+df[df.isnull().any(axis=1)]
+
 # **Drop the missing rows**
 
 df = df.dropna()
@@ -415,6 +417,13 @@ def ts_holt(train, test, **kwargs):
 for col in train.columns:
     ts_holt(train[col], test[col], smoothing_level=0.2, smoothing_slope=0.1)
 
+# # THE BEST MODEL!!!!
+
+for col in train.columns:
+    ts_holt(train[col], test[col])
+
+
+# ## Holt Winter's
 
 # ## Prophet
 
@@ -433,6 +442,7 @@ def ts_prophet(series, periods, horizon, cap=None, floor=None, **kwargs):
     plt.show()
     
     m = Prophet(**kwargs)
+    Prophet()
     m.fit(df)
     
     future = m.make_future_dataframe(periods)
@@ -450,7 +460,7 @@ def ts_prophet(series, periods, horizon, cap=None, floor=None, **kwargs):
     
     df_cv = cross_validation(m, horizon)
     
-    df_p = performance_metrics(df_cv)
+    df_p = performance_metrics(df_cv, rolling_window=1)
     
     fig3 = plot_cross_validation_metric(df_cv, metric="rmse")
     plt.show()
@@ -460,6 +470,10 @@ def ts_prophet(series, periods, horizon, cap=None, floor=None, **kwargs):
 
 for col in df.columns:
     _, _, df_p = ts_prophet(df[col], 30, "14 days", daily_seasonality=True, changepoint_range=0.9)
+    print(df_p)
+
+for col in df.columns:
+    _, _, df_p = ts_prophet(df[col], 30, "14 days", weekly_seasonality=True, seasonality_mode='multiplicative')
     print(df_p)
 
 # ### Summarize Conclusions
