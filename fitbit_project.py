@@ -241,82 +241,11 @@ df.isnull().sum()
 
 # ### Train-Test Split
 
-# ### Visualizations
-
-# +
-plt.figure(figsize=(16, 15))
-
-for i, col in enumerate(df.columns):
-    plot_number = i + 1
-    series = df[col]
-    plt.subplot(4, 3, plot_number)
-    plt.title(col)
-    series.hist(bins=20, density=False, cumulative=False, log=False)
-# -
-
-plt.figure(figsize=(10, 6))
-sns.heatmap(df.corr(), cmap="Blues", annot=True)
-
-df["calories_burned_bin"] = pd.qcut(df.calories_burned, q=4)
-
-df.index.min()
-
-sns.swarmplot(
-    x="calories_burned_bin", y="activity_calories", data=df, palette="Set2"
-)
-ax = sns.boxplot(
-    x="calories_burned_bin",
-    y="activity_calories",
-    data=df,
-    showcaps=True,
-    boxprops={"facecolor": "None"},
-    showfliers=True,
-    whiskerprops={"linewidth": 0},
-)
-
-train = df[:"2018-08"]
-test = df["2018-12":]
-print(train.nunique())
-print(test.nunique())
-
-#Weekly
-calories = train.resample('W').calories_burned.mean()
-
-calories.head()
-
-calories.plot()
-
-#Monthly
-calories.resample('MS').mean().plot()
-
-#5 period rolling mean and plot
-calories.rolling(5).mean().plot(figsize=(12, 4))
-
-#10 period difference and plot
-calories.diff(periods=10).plot(figsize=(12, 4))
-
-#lag plot
-pd.plotting.lag_plot(calories)
-
-#pearson correlation
-df_corr = pd.concat([calories.shift(1), calories], axis=1)
-df_corr.columns = ['t-1','t+1']
-result = df_corr.corr()
-print(result)
-
-#autocorrelation plot
-pd.plotting.autocorrelation_plot(calories)
-
-#partial autocorrelation plot
-sm.graphics.tsa.plot_pacf(calories)
-
-# ## Modeling <a name="modeling"></a>
-
 # +
 aggregation = 'sum'
 
-train = df[:'2018-09'].calories_burned.resample('D').agg(aggregation)
-test = df['2018-10':].calories_burned.resample('D').agg(aggregation)
+train = df[:'2018-09'].resample('D').agg(aggregation)
+test = df['2018-10':].resample('D').agg(aggregation)
 # -
 
 print('Observations: %d' % (len(train.values) + len(test.values)))
@@ -325,10 +254,61 @@ print('Testing Observations: %d' % (len(test)))
 
 pd.concat([train.head(3), train.tail(3)])
 
-plt.figure(figsize=(10, 6))
-plt.plot(train)
-plt.plot(test)
-plt.show()
+pd.concat([test.head(3), test.tail(3)])
+
+# ### Visualizations
+
+# #### Histograms
+
+# +
+plt.figure(figsize=(16, 15))
+
+for i, col in enumerate(train.columns):
+    plot_number = i + 1
+    series = train[col]
+    plt.subplot(4, 3, plot_number)
+    plt.title(col)
+    series.hist(bins=20, density=False, cumulative=False, log=False)
+# -
+
+# #### Heatmap
+
+plt.figure(figsize=(15, 8))
+sns.heatmap(train.corr(), cmap="Blues", annot=True)
+
+# #### Calories burned
+
+#Daily
+train.calories_burned.plot()
+
+#Weekly
+train.resample('W').calories_burned.mean().plot(ylim=(1500, 4500))
+
+#Monthly
+train.calories_burned.resample('MS').mean().plot(ylim=(1500, 4000))
+
+# 5 period rolling mean and plot
+train.calories_burned.rolling(5).mean().plot(figsize=(12, 4))
+
+#10 period difference and plot
+train.calories_burned.diff(periods=10).plot(figsize=(12, 4))
+
+#lag plot
+pd.plotting.lag_plot(train.calories_burned)
+
+#pearson correlation
+df_corr = pd.concat([train.calories_burned.shift(1), train.calories_burned], axis=1)
+df_corr.columns = ['t-1','t+1']
+result = df_corr.corr()
+print(result)
+
+#autocorrelation plot
+pd.plotting.autocorrelation_plot(train.calories_burned)
+
+#partial autocorrelation plot
+sm.graphics.tsa.plot_pacf(train.calories_burned)
+
+# ## Modeling <a name="modeling"></a>
 
 # ### SIMPLE AVERAGE
 
