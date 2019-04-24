@@ -85,6 +85,8 @@ from sklearn import metrics
 import adalib
 import pandas as pd
 import math
+from statsmodels.tsa.api import Holt
+from fbprophet import Prophet
 
 # **Reload modules to capture changes**
 
@@ -439,11 +441,9 @@ plt.plot(train)
 plt.plot(test)
 plt.show()
 
-# +
-#SIMPLE AVERAGE
+# ### SIMPLE AVERAGE
 
 yhat = pd.DataFrame(dict(actual=test))
-# -
 
 yhat['avg_forecast'] = train.mean()
 yhat.head()
@@ -498,9 +498,43 @@ def plot_and_eval(predictions, actual=test, metric_fmt='{:.2f}', linewidth=4):
 
 plot_and_eval(yhat.avg_forecast)
 
-test
+# ### MOVING AVERAGE
 
+periods = 7
+yhat['moving_avg_forecast_7'] = train.rolling(7).mean().iloc[-1] 
 
+plot_and_eval(yhat.moving_avg_forecast_7)
+
+# +
+period_vals = [7, 20, 30, 60, 90]
+
+for periods in period_vals:
+    yhat[f'moving_avg_forecast_{periods}'] = train.rolling(periods).mean().iloc[-1] 
+
+forecasts = [yhat[f'moving_avg_forecast_{p}'] for p in period_vals]
+
+plot_and_eval(forecasts, linewidth=2)
+# -
+
+# ## Holts Linear Trend
+
+sm.tsa.seasonal_decompose(train).plot()
+result = sm.tsa.stattools.adfuller(train)
+plt.show()
+
+# +
+holt = Holt(train).fit(smoothing_level=.2, smoothing_slope=.1)
+
+yhat['holt_linear'] = holt.forecast(test.shape[0])
+# -
+
+plot_and_eval(yhat.holt_linear)
+
+# ## Prophet
+
+df['y'] = df.calories_burned
+df['ds'] = df.Date
+df = df.groupby(['ds'])['y'].sum().reset_index()
 
 
 
