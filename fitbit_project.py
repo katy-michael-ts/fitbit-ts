@@ -239,8 +239,6 @@ df.isnull().sum()
 
 # ## Exploration  <a name="exploration"></a>
 
-# ### Train-Test Split
-
 # ### Visualizations
 
 # +
@@ -273,6 +271,8 @@ ax = sns.boxplot(
     showfliers=True,
     whiskerprops={"linewidth": 0},
 )
+
+# ### Train/Test split
 
 train = df[:"2018-08"]
 test = df["2018-12":]
@@ -466,6 +466,89 @@ df_p.head(5)
 
 fig3 = plot_cross_validation_metric(df_cv, metric='rmse')
 
+
+# +
+#simple average
+
+def simple_average():
+    yhat['avg_forecast'] = train.mean()
+    return plot_and_eval(yhat.avg_forecast)
+
+simple_average()
+
+
+# +
+# Moving average
+
+def moving_avg():
+    period_vals = [2, 4, 7, 12]
+    for periods in period_vals:
+        yhat[f'moving_avg_forecast_{periods}'] = train.rolling(periods).mean().iloc[-1]
+    forecasts = [yhat[f'moving_avg_forecast_{p}'] for p in period_vals]
+    return plot_and_eval(forecasts, linewidth=2)
+
+moving_avg()
+
+
+# +
+#Holts Linear 
+
+def holts_lin():
+    sm.tsa.seasonal_decompose(train).plot()
+    result = sm.tsa.stattools.adfuller(train)
+    plt.show()
+    holt = Holt(train).fit(smoothing_level=.2, smoothing_slope=.1)
+    yhat['holt_linear'] = holt.forecast(test.shape[0])
+    return plot_and_eval(yhat.holt_linear)
+
+holts_lin()
+
+# +
+#Prophet
+
+d_df = df
+
+d_df['y'] = d_df.calories_burned
+d_df['ds'] = d_df.index
+d_df = d_df.groupby(['ds'])['y'].sum().reset_index()
+
+plt.figure(figsize=(16,6))
+sns.lineplot(d_df.ds, d_df.y)
+
+d_df['cap'] = 5000
+d_df['floor'] = 2100
+
+m = Prophet(daily_seasonality=True, growth='logistic', changepoint_range=0.9)
+m.fit(d_df)
+
+future = m.make_future_dataframe(periods=8)
+future['cap'] = 5000
+future['floor'] = 2100
+print(future.head())
+print(future.tail())
+print(d_df.tail())
+
+forecast = m.predict(future)
+forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail()
+
+fig1 = m.plot(forecast)
+
+fig2 = m.plot_components(forecast)
+
+df_cv = cross_validation(m, horizon='30 days')
+
+df_p = performance_metrics(df_cv)
+df_p.head(5)
+
+fig3 = plot_cross_validation_metric(df_cv, metric='rmse')
+# -
+
+
+
+
+
+# #### Activity Calories
+
 # +
 aggregation = 'sum'
 
@@ -480,18 +563,65 @@ plt.show()
 
 test
 
+# +
+period_vals = [2, 4, 7, 12]
 
+for periods in period_vals:
+    yhat[f'moving_avg_forecast_{periods}'] = train.rolling(periods).mean().iloc[-1]
 
+forecasts = [yhat[f'moving_avg_forecast_{p}'] for p in period_vals]
 
+plot_and_eval(forecasts, linewidth=2)
+# -
 
+# #### Steps
 
+# +
+aggregation = 'sum'
 
+train = df[:'2018-09'].steps.resample('W').agg(aggregation)
+test = df['2018-10':].steps.resample('W').agg(aggregation)
+# -
 
+plt.figure(figsize=(10, 6))
+plt.plot(train)
+plt.plot(test)
+plt.show()
 
+# +
+period_vals = [2, 4, 7, 12]
 
+for periods in period_vals:
+    yhat[f'moving_avg_forecast_{periods}'] = train.rolling(periods).mean().iloc[-1]
 
+forecasts = [yhat[f'moving_avg_forecast_{p}'] for p in period_vals]
 
+plot_and_eval(forecasts, linewidth=2)
+# -
 
+# #### Distance
 
+# +
+aggregation = 'sum'
+
+train = df[:'2018-09'].distance.resample('W').agg(aggregation)
+test = df['2018-10':].distance.resample('W').agg(aggregation)
+# -
+
+plt.figure(figsize=(10, 6))
+plt.plot(train)
+plt.plot(test)
+plt.show()
+
+# +
+period_vals = [2, 4, 7, 12]
+
+for periods in period_vals:
+    yhat[f'moving_avg_forecast_{periods}'] = train.rolling(periods).mean().iloc[-1]
+
+forecasts = [yhat[f'moving_avg_forecast_{p}'] for p in period_vals]
+
+plot_and_eval(forecasts, linewidth=2)
+# -
 
 # ### Summarize Conclusions
