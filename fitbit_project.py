@@ -13,12 +13,8 @@
 #     name: python3
 # ---
 
-# # Fitbit Time Series Project
+# # The Fitbit Whodunnit
 # By Kathryn Salts & Michael Moran
-
-# ## TODO
-#
-# - [ ] [What to do with extra data?](#todo-extra-data)
 
 # ## Table of contents
 # 1. [Project Planning](#project-planning)
@@ -50,7 +46,6 @@
 
 # ### Hypotheses
 #
-# 1. The wearer may be testing fitness trackers.
 # 1. The wearer is fairly active, but not mostly mobile activity, possibly stationary like lifting weights.
 # 1. Wearer is not someone in a drug trial because there are not many entries in the food log. We would expect them to be logging food to see if there are any interactions.
 # 1. The wearer is likely not wearing the tracker while sleeping. Average inactivity/activity minutes is 16-17 hours per day.
@@ -62,8 +57,10 @@
 
 # ### Thoughts & Questions
 #
-# 1. What does the weekend data look like? This may tell us whether they work there or are in a drug trial  (likely to wear the fitbit on the weekend) or are testing fitness equipment (not likely to wear on weekend)
+# 1. What does the weekend data look like? This may tell us whether they work there or are in a drug trial (likely to wear the fitbit on the weekend) or are testing fitness equipment (not likely to wear on weekend).
+#     - There is more activity on the weekend than weekdays.
 # 1. Why does the activity tracking data end on 12/7 but the food log and caloric intake log keep going?
+#     - We aren't comfortable speculating on this with current evidence.
 # 1. What do we do with the food log entries?
 #     - Got rid of them for now because it doesn't appear to be worth the effort to wrangle them
 
@@ -84,6 +81,7 @@ from pylab import rcParams
 import matplotlib.pyplot as plt
 
 # %matplotlib inline
+import numpy as np
 import seaborn as sns
 import statsmodels.api as sm
 from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
@@ -100,6 +98,7 @@ from fbprophet.plot import (
     plot_cross_validation_metric,
     plot_forecast_component,
 )
+# -
 
 # **Reload modules to capture changes**
 
@@ -108,7 +107,6 @@ acquire = reload(acquire)
 prepare = reload(prepare)
 
 # ## Acquisition <a name="acquisition"></a>
-
 
 df_cals_in, df_activities, df_food_log = acquire.acquire_fitbit()
 
@@ -181,6 +179,8 @@ df_bad_rows[(df_bad_rows.nmissing > 0) | (df_bad_rows.nempty > 0)]
 
 df[df.isnull().any(axis=1)]
 
+df_forecast = df[df.isnull().any(axis=1)]
+
 # **Drop the missing rows**
 
 df = df.dropna()
@@ -212,9 +212,9 @@ for i, col in enumerate(df.columns):
     sns.boxplot(data=series)
 # -
 
+# **Remove the following outliers**
 # - calories_burned: remove < 1000
 # - minutes_sedentary < 200
-# -
 
 df = df[df.calories_burned > 1000]
 df = df[df.minutes_sedentary > 150]
@@ -227,21 +227,20 @@ df.isnull().sum()
 
 # **Thoughts**
 # - What is distance measured in?
+#     - Probably miles
 # - What does "floors" mean?
-# - What is the difference between the "calories in" and "calories" columns?
-# -
+#     - Probably has to do with steps.
+# - What is the difference between the calories_in and calories columns?
+#     - Not sure but we dropped calories_in.
 #
 # **Conclusions**
 #
 # 1. calories_in has a mean of 51; looks like it is mostly 0
-# 1. The mean of calories_buned appears to be above the average for a man and way above average for a woman
+# 1. The mean of calories_burned appears to be above the average for a man and way above average for a woman
 # 1. Steps and distance metrics appear to match up
 # 1. This person is sedentary for on average 13+ hours
-# 1. There appear to be days where the Fitbit was not worn or not worn much. min of calories_burned is 799. min of steps and distance and floors is 0. minutes sedentary is 1440 (24 hours).
-# 1. columns to drop
-#     - calories_in (239 rows are 0)
+# 1. There appear to be days where the Fitbit was not worn or not worn much. Min of calories_burned is 799. Min of steps and distance and floors is 0. Minutes sedentary is 1440 (24 hours).
 # 1. After looking at the binned data, it looks like this person was active much of the time by looking at calories_burned and steps.
-# 1.
 
 # ## Exploration  <a name="exploration"></a>
 
@@ -280,7 +279,10 @@ for i, col in enumerate(train.columns):
 # #### Heatmap
 
 plt.figure(figsize=(15, 8))
-sns.heatmap(train.corr(), cmap="Blues", annot=True)
+corr = train.corr()
+mask = np.zeros_like(corr, dtype=np.bool)
+mask[np.triu_indices_from(mask)] = True
+sns.heatmap(corr, cmap="Blues", annot=True, mask=mask, linewidths=.5)
 
 # #### Calories burned
 
@@ -367,7 +369,7 @@ def plot_and_eval(train, test, predictions, actual, metric_fmt='{:.2f}', linewid
 
 # -
 
-# ### SIMPLE AVERAGE
+# ### Simple Average
 
 def ts_simple_average(train, test):
     yhat = pd.DataFrame(dict(actual=test))
@@ -380,7 +382,7 @@ for col in train.columns:
     _ = ts_simple_average(train[col], test[col])
 
 
-# ### MOVING AVERAGE
+# ### Moving Average
 
 def ts_moving_average(train, test, periods):
     yhat = pd.DataFrame(dict(actual=test))
@@ -399,7 +401,7 @@ for col in train.columns:
     ts_moving_average(train[col], test[col], period_vals)
 
 
-# ## Holts Linear Trend
+# ### Holt's Linear Trend
 
 def ts_holt(train, test, **kwargs):
     yhat = pd.DataFrame(dict(actual=test))
@@ -408,24 +410,27 @@ def ts_holt(train, test, **kwargs):
     plt.show()
     
     holt = Holt(train).fit(**kwargs)
-
+    
     yhat["holt_linear"] = holt.forecast(test.shape[0])
     
     plot_and_eval(train, test, yhat.holt_linear, test)
+    
+    return holt
 
 
 for col in train.columns:
     ts_holt(train[col], test[col], smoothing_level=0.2, smoothing_slope=0.1)
 
-# # THE BEST MODEL!!!!
+# #### The Best Model
 
 for col in train.columns:
-    ts_holt(train[col], test[col])
+    model = ts_holt(train[col], test[col])
+    df_forecast[col] = model.predict(df_forecast.index[0], df_forecast.index[-1])
+
+df_forecast.round(2).to_csv("missing_weeks_forecast.csv")
 
 
-# ## Holt Winter's
-
-# ## Prophet
+# ### Prophet
 
 def ts_prophet(series, periods, horizon, cap=None, floor=None, **kwargs):
     df = pd.DataFrame()
@@ -473,7 +478,11 @@ for col in df.columns:
     print(df_p)
 
 for col in df.columns:
-    _, _, df_p = ts_prophet(df[col], 30, "14 days", weekly_seasonality=True, seasonality_mode='multiplicative')
+    _, _, df_p = ts_prophet(df[col], 30, "14 days", weekly_seasonality=True)
     print(df_p)
 
 # ### Summarize Conclusions
+#
+# We chose Holt's Exponential Smoothing without any hyperparameters. It made predictions with the lowest Root Mean Squared Error, even compared to Prophet with weekly seasonality and various hyperparameter tuning. The downside to the Holt model is that is linear and either increases, decreases, or stays flat. This would be unacceptable if we were forecasting for months because the predictions would become increasingly inaccurate for this dataset. In this case, Prophet would probably be the choice.
+#
+# In our opinion, the wearer of the Fitbit is an employee. We excluded a fitness equipment tester because heavy activity occurs on the weekends and it was worn on average 17 hours every day. We would expect a tester to wear the Fitbit during the week and during work hours. We excluded a drug trial participant because we would expect more rigorous logging of food. For the same reason, we excluded someone undergoing "ethical" experimentation. However, we had less confidence excluding this person because of the vague description of the experimentation.
